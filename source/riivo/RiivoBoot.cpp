@@ -810,6 +810,23 @@ namespace Riivo
 		}
 	}
 
+	static void LogValidationPhase(int op, void *)
+	{
+		const char *name = "unknown";
+		switch (op)
+		{
+			case VOP_NONE: name = "complete"; break;
+			case VOP_EXPECT_RESERVE: name = "expectations"; break;
+			case VOP_WALK: name = "plain walk"; break;
+			case VOP_COMPACT: name = "compact build"; break;
+			case VOP_COMPACT_WALK: name = "compact walk"; break;
+			case VOP_STAGE: name = "plain staging"; break;
+			case VOP_COLLECT: name = "collect placements"; break;
+			case VOP_PLAN: name = "fragment plan"; break;
+		}
+		LogStep("validation phase %d: %s", op, name);
+	}
+
 	//! Phase durations from the ring above, oldest first. Step-to-step
 	//! deltas: how long each phase took, not just when it finished. Covers
 	//! pre-shutdown steps only - this prints from ReportLaunch, which runs
@@ -1909,6 +1926,7 @@ namespace Riivo
 		vreq.sectorSize = bootSectorSize;
 		vreq.usedFrags = fragStats.fragsBefore ? fragStats.fragsBefore
 					   : gameFrags->num;
+		vreq.traceCallback = LogValidationPhase;
 		Riivo::ValidateResult vres;
 		//! Entry checkpoint: the validator catches its own allocation
 		//! failures into vres.oom (see below), so reaching the return line
