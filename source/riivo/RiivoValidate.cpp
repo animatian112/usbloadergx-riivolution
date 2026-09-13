@@ -102,10 +102,12 @@ namespace Riivo
 		return out;
 	}
 
-	static void TraceOp(int *opTrace, int op)
+	static void TraceOp(const ValidateRequest &req, int *opTrace, int op)
 	{
 		if (opTrace)
 			*opTrace = op;
+		if (req.traceCallback)
+			req.traceCallback(op, req.traceContext);
 	}
 
 	void ValidateTable(const ValidateRequest &req, ValidateResult &res,
@@ -133,7 +135,7 @@ namespace Riivo
 			//! expectation list is ~6300 paths, and growing it by repeated
 			//! reallocation fragments the heap right before the two FST
 			//! walks and the compaction buffer. (Churn reduction only.)
-			TraceOp(opTrace, VOP_EXPECT_RESERVE);
+			TraceOp(req, opTrace, VOP_EXPECT_RESERVE);
 			std::vector<FstWalkExpectation> expectedFst;
 			expectedFst.reserve(req.fst->FileCount() +
 								req.expectedModSizes->size());
@@ -162,7 +164,7 @@ namespace Riivo
 			}
 			res.expectedComplete = expectedComplete;
 			res.expectedPaths = (u32) expectedFst.size();
-			TraceOp(opTrace, VOP_WALK);
+			TraceOp(req, opTrace, VOP_WALK);
 			FstWalk gameWalk;
 			std::string walkError;
 			res.fstWalkOK = expectedComplete && !newFst.empty() &&
@@ -191,13 +193,13 @@ namespace Riivo
 			if (req.fstReserve > 0 && res.fstWalkOK &&
 				newFst.size() > req.fstReserve)
 			{
-				TraceOp(opTrace, VOP_COMPACT);
+				TraceOp(req, opTrace, VOP_COMPACT);
 				std::vector<u8> compactFst;
 				bool compactOK =
 					builder.SerializeCompacted(compactFst, true);
 				std::string cwErr;
 				FstWalk cw;
-				TraceOp(opTrace, VOP_COMPACT_WALK);
+				TraceOp(req, opTrace, VOP_COMPACT_WALK);
 				if (compactOK)
 					compactOK = !compactFst.empty() &&
 						cw.Open(&compactFst[0], compactFst.size(), true,
@@ -219,19 +221,19 @@ namespace Riivo
 			}
 			else
 			{
-				TraceOp(opTrace, VOP_STAGE);
+				TraceOp(req, opTrace, VOP_STAGE);
 			}
 			res.useCompact = useCompact;
 
 			//! Every modded entry must have been given an offset in SetupDisc.
 			//! One that was not is pointed at whatever happens to be there, so
 			//! the whole table has to be refused.
-			TraceOp(opTrace, VOP_COLLECT);
+			TraceOp(req, opTrace, VOP_COLLECT);
 			std::vector<PlacedFile> placed;
 			CollectPlaced(builder, region, *req.redirects, *req.created,
 						  placed);
 
-			TraceOp(opTrace, VOP_PLAN);
+			TraceOp(req, opTrace, VOP_PLAN);
 			std::vector<ModExtent> extents;
 			ToExtents(placed, extents);
 
@@ -261,7 +263,7 @@ namespace Riivo
 			res.extents.swap(extents);
 			res.modSkips.swap(modSkips);
 			res.stats = useCompact ? builder.Stats() : plainStats;
-			TraceOp(opTrace, VOP_NONE);
+			TraceOp(req, opTrace, VOP_NONE);
 		}
 		catch (const std::exception &)
 		{
