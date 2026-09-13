@@ -31,6 +31,8 @@
 
 namespace Riivo
 {
+	typedef void (*ValidateTraceCallback)(int op, void *context);
+
 	//! Operation trace codes for *opTrace. The harness records which op
 	//! threw; production passes NULL and skips the stores.
 	enum ValidateOp
@@ -65,12 +67,15 @@ namespace Riivo
 		u64 imageBytes;            // backup's declared size
 		u32 sectorSize;            // drive geometry
 		u32 usedFrags;             // game fragment entries
+		ValidateTraceCallback traceCallback; // optional persistent checkpoint
+		void *traceContext;
 
 		ValidateRequest()
 			: builder(0), fst(0), plainFst(0), modOffsets(0),
 			  expectedModSizes(0), fstReserve(0), region(0), modRegionStart(0),
 			  redirects(0), created(0), modRecords(0), modAddFails(0),
-			  imageBytes(0), sectorSize(0), usedFrags(0) {}
+			  imageBytes(0), sectorSize(0), usedFrags(0),
+			  traceCallback(0), traceContext(0) {}
 	};
 
 	//! Everything the window decided. Plain data; the caller formats the
